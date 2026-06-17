@@ -32,6 +32,23 @@
     </edmx:Reference>
     <edmx:DataServices m:DataServiceVersion="2.0">
         <Schema Namespace="ZGWD4FI0005_SRV" xml:lang="en" sap:schema-version="1" xmlns="http://schemas.microsoft.com/ado/2008/09/edm">
+            <EntityType Name="ZCDS_D4_FI_0001Type" sap:label="[FI] 손익계산서 데이터" sap:content-version="1">
+                <Key>
+                    <PropertyRef Name="Bukrs"/>
+                    <PropertyRef Name="Gjahr"/>
+                    <PropertyRef Name="Weeks"/>
+                </Key>
+                <Property Name="Bukrs" Type="Edm.String" Nullable="false" MaxLength="4" sap:display-format="UpperCase" sap:label="회사 코드" sap:quickinfo="회사코드"/>
+                <Property Name="Gjahr" Type="Edm.String" Nullable="false" MaxLength="4" sap:display-format="NonNegative" sap:label="회계연도"/>
+                <Property Name="Weeks" Type="Edm.String" Nullable="false" MaxLength="2" sap:display-format="NonNegative" sap:label="주차"/>
+                <Property Name="Ktoks" Type="Edm.String" MaxLength="1" sap:display-format="UpperCase" sap:label="계정그룹" sap:quickinfo="계정그룹(계정 대분류)"/>
+                <Property Name="PL_type" Type="Edm.String" MaxLength="2" sap:display-format="UpperCase" sap:label="P/L계정 중분류"/>
+                <Property Name="Saknr" Type="Edm.String" MaxLength="6" sap:display-format="UpperCase" sap:label="계정과목코드"/>
+                <Property Name="Gltxt" Type="Edm.String" MaxLength="20" sap:display-format="UpperCase" sap:label="계정과목명"/>
+                <Property Name="s_amount" Type="Edm.Decimal" Precision="23" Scale="2" sap:unit="Waers"/>
+                <Property Name="h_amount" Type="Edm.Decimal" Precision="23" Scale="2" sap:unit="Waers"/>
+                <Property Name="Waers" Type="Edm.String" MaxLength="5" sap:display-format="UpperCase" sap:label="통화" sap:semantics="currency-code"/>
+            </EntityType>
             <EntityType Name="ZCDS_D4_FI_0002Type" sap:label="[FI] 손익계산서 데이터_1레벨" sap:content-version="1">
                 <Key>
                     <PropertyRef Name="Bukrs"/>
@@ -48,6 +65,7 @@
                 <Property Name="amount" Type="Edm.Decimal" Precision="23" Scale="2" sap:unit="Waers"/>
             </EntityType>
             <EntityContainer Name="ZGWD4FI0005_SRV_Entities" m:IsDefaultEntityContainer="true" sap:message-scope-supported="true" sap:supported-formats="atom json xlsx">
+                <EntitySet Name="ZCDS_D4_FI_0001" EntityType="ZGWD4FI0005_SRV.ZCDS_D4_FI_0001Type" sap:creatable="false" sap:updatable="false" sap:deletable="false" sap:content-version="1"/>
                 <EntitySet Name="ZCDS_D4_FI_0002" EntityType="ZGWD4FI0005_SRV.ZCDS_D4_FI_0002Type" sap:creatable="false" sap:updatable="false" sap:deletable="false" sap:content-version="1"/>
             </EntityContainer>
             <Annotation Term="Core.SchemaVersion" String="1.0.0" xmlns="http://docs.oasis-open.org/odata/ns/edm"/>

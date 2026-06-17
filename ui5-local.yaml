@@ -31,7 +31,8 @@ server:
         ignoreCertErrors: false # If set to true, certificate errors will be ignored. E.g. self-signed certificates will be accepted
         backend:
           - path: /sap
-            url: http://bgissap3.bgissap.co.kr:8000
+            url: http://bgissap3.bgissap.co.kr:8000/
+            authenticationType: basic
     - name: sap-fe-mockserver
       beforeMiddleware: csp
       configuration:

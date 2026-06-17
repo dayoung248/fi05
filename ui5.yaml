@@ -17,7 +17,8 @@ server:
           url: https://ui5.sap.com
         backend:
           - path: /sap
-            url: http://bgissap3.bgissap.co.kr:8000
+            url: http://bgissap3.bgissap.co.kr:8000/
+            authenticationType: basic
     - name: fiori-tools-appreload
       afterMiddleware: compression
       configuration:

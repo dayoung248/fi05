@@ -1,6 +1,122 @@
-<mvc:View controllerName="code.t4.ui5.fi05.controller.Main"
+<mvc:View
+    controllerName="code.t4.ui5.fi05.controller.Main"
     xmlns:mvc="sap.ui.core.mvc"
-    xmlns="sap.m">
-    <Page id="page" title="{i18n>title}">
+    xmlns:core="sap.ui.core"
+    xmlns="sap.m"
+    xmlns:form="sap.ui.layout.form">
+    <Page id="page" title="손익계산서">
+        <content>
+            <VBox class="sapUiSmallMargin">
+                <OverflowToolbar>
+                    <Label text="회사코드:"/>
+                    <Input
+                        id="bukrsInput"
+                        value="{search>/Bukrs}"
+                        maxLength="4"
+                        placeholder="예: 1000"
+                        width="10rem"/>
+                    <ToolbarSeparator/>
+                    <Label text="회계연도:"/>
+                    <Input
+                        id="gjahrInput"
+                        value="{search>/Gjahr}"
+                        maxLength="4"
+                        type="Number"
+                        width="10rem"/>
+                    <ToolbarSeparator/>
+                    <Label text="회계주차:"/>
+                    <Input
+                        id="weeksInput"
+                        value="{search>/Weeks}"
+                        maxLength="2"
+                        type="Number"
+                        width="6rem"/>
+                    <Button
+                        text="조회"
+                        type="Emphasized"
+                        icon="sap-icon://search"
+                        press=".onSearch"/>
+                    <Button
+                        text="초기화"
+                        type="Default"
+                        press=".onReset"/>
+                    <ToolbarSpacer/>
+                </OverflowToolbar>
+
+                <OverflowToolbar class="sapUiSmallMarginTop">
+                    <ToolbarSpacer/>
+                    <Button
+                        text="PDF 출력"
+                        icon="sap-icon://pdf-attachment"
+                        enabled="{pl>/isSearched}"
+                        press=".onExportPdf"/>
+                    <Button
+                        text="Excel 다운로드"
+                        icon="sap-icon://excel-attachment"
+                        enabled="{pl>/isSearched}"
+                        press=".onExportExcel"/>
+                </OverflowToolbar>
+
+                <VBox
+                    alignItems="Center"
+                    class="sapUiSmallMarginTop sapUiSmallMarginBottom"
+                    visible="{pl>/isSearched}">
+                    <Title text="손익계산서" level="H2"/>
+                    <Text text="{pl>/periods/current/periodText}"/>
+                    <Text text="{pl>/periods/previous/periodText}"/>
+                    <Text text="{pl>/periods/previous2/periodText}"/>
+                </VBox>
+
+                <HBox class="sapUiTinyMarginTop" width="100%" alignItems="Center">
+                    <Label text="" width="3rem"/>
+                    <Label text="구분" design="Bold" width="20rem"/>
+                    <HBox width="12rem" justifyContent="End">
+                        <Label text="{pl>/periods/current/title}" design="Bold" textAlign="End"/>
+                    </HBox>
+                    <HBox width="12rem" justifyContent="End">
+                        <Label text="{pl>/periods/previous/title}" design="Bold" textAlign="End"/>
+                    </HBox>
+                    <HBox width="12rem" justifyContent="End">
+                        <Label text="{pl>/periods/previous2/title}" design="Bold" textAlign="End"/>
+                    </HBox>
+                </HBox>
+
+                <Tree
+                    id="plTree"
+                    items="{path: 'pl>/items', parameters: {arrayNames: ['children']}}"
+                    mode="None"
+                    includeItemInSelection="false">
+                    <CustomTreeItem>
+                        <customData>
+                            <core:CustomData key="rowType" value="{pl>rowType}" writeToDom="true"/>
+                        </customData>
+                        <HBox width="100%" alignItems="Center">
+                            <Text text="{pl>name}" width="20rem"/>
+                            <HBox width="12rem" justifyContent="End">
+                                <ObjectNumber
+                                    textAlign="End"
+                                    number="{parts: [{path: 'pl>currentAmount'}, {path: 'pl>Waers'}], formatter: '.formatCurrencyAmount'}"
+                                    unit="{pl>Waers}"
+                                    state="{parts: [{path: 'pl>currentAmount'}, {path: 'pl>rowType'}], formatter: '.formatCurrencyState'}"/>
+                            </HBox>
+                            <HBox width="12rem" justifyContent="End">
+                                <ObjectNumber
+                                    textAlign="End"
+                                    number="{parts: [{path: 'pl>previousAmount'}, {path: 'pl>Waers'}], formatter: '.formatCurrencyAmount'}"
+                                    unit="{pl>Waers}"
+                                    state="{parts: [{path: 'pl>previousAmount'}, {path: 'pl>rowType'}], formatter: '.formatCurrencyState'}"/>
+                            </HBox>
+                            <HBox width="12rem" justifyContent="End">
+                                <ObjectNumber
+                                    textAlign="End"
+                                    number="{parts: [{path: 'pl>previous2Amount'}, {path: 'pl>Waers'}], formatter: '.formatCurrencyAmount'}"
+                                    unit="{pl>Waers}"
+                                    state="{parts: [{path: 'pl>previous2Amount'}, {path: 'pl>rowType'}], formatter: '.formatCurrencyState'}"/>
+                            </HBox>
+                        </HBox>
+                    </CustomTreeItem>
+                </Tree>
+            </VBox>
+        </content>
     </Page>
 </mvc:View>
