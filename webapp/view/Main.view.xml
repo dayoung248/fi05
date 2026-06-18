@@ -86,7 +86,10 @@
                     items="{path: 'pl>/items', parameters: {arrayNames: ['children']}}"
                     mode="None"
                     includeItemInSelection="false">
-                    <CustomTreeItem>
+                    <CustomTreeItem
+                        hasExpander="{pl>hasExpander}"
+                        expanded="{pl>expanded}"
+                        visible="{= !${pl>isPlaceholder}}">
                         <customData>
                             <core:CustomData key="rowType" value="{pl>rowType}" writeToDom="true"/>
                         </customData>

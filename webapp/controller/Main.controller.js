@@ -63,11 +63,21 @@ sap.ui.define([
                         items: aItems
                     });
 
+                    this._expandPlTree(1);
                     MessageToast.show("손익계산서 조회가 완료되었습니다.");
                 })
                 .catch(() => {
                     MessageToast.show("손익계산서 조회 중 오류가 발생했습니다.");
                 });
+        },
+
+        _expandPlTree(iLevel) {
+            const oTree = this.byId("plTree");
+            const oBinding = oTree && oTree.getBinding("items");
+
+            if (oBinding && typeof oBinding.expandToLevel === "function") {
+                oBinding.expandToLevel(iLevel);
+            }
         },
 
         onReset() {
@@ -303,28 +313,53 @@ sap.ui.define([
             const oNetProfit = this._addAmountSets(oPreTaxProfit, oCorporateTax);
 
             const aRows = [
-                this._createStatementRow("SA", "매출액", "normal", oAmounts.SA, this._createDetailRows(oPeriodData, "SA")),
-                this._createStatementRow("CO", "매출원가", "deduction", oAmounts.CO, this._createDetailRows(oPeriodData, "CO")),
-                this._createStatementRow("GROSS_PROFIT", "매출총이익", "subtotal", oGrossProfit),
-                this._createStatementRow("SG", "판매관리비", "deduction", oAmounts.SG, this._createDetailRows(oPeriodData, "SG")),
-                this._createStatementRow("OPERATING_PROFIT", "영업이익(손실)", "subtotal", oOperatingProfit),
-                this._createStatementRow("OI", "영업외수익", "addition", oAmounts.OI, this._createDetailRows(oPeriodData, "OI")),
-                this._createStatementRow("OE", "영업외비용", "deduction", oAmounts.OE, this._createDetailRows(oPeriodData, "OE")),
-                this._createStatementRow("PRE_TAX_PROFIT", "법인세차감전이익(손실)", "subtotal", oPreTaxProfit),
-                this._createStatementRow("CORPORATE_TAX", "법인세비용", "deduction", oCorporateTax),
-                this._createStatementRow("NET_PROFIT", "당기순이익(손실)", "total", oNetProfit)
+                this._createStatementRow("SA", "매출액", "normal", oAmounts.SA, this._createDetailRows(oPeriodData, "SA"), true),
+                this._createStatementRow("CO", "매출원가", "deduction", oAmounts.CO, this._createDetailRows(oPeriodData, "CO"), true),
+                this._createStatementRow("GROSS_PROFIT", "매출총이익", "subtotal", oGrossProfit, [], false, true),
+                this._createStatementRow("SG", "판매관리비", "deduction", oAmounts.SG, this._createDetailRows(oPeriodData, "SG"), true),
+                this._createStatementRow("OPERATING_PROFIT", "영업이익(손실)", "subtotal", oOperatingProfit, [], false, true),
+                this._createStatementRow("OI", "영업외수익", "addition", oAmounts.OI, this._createDetailRows(oPeriodData, "OI"), true),
+                this._createStatementRow("OE", "영업외비용", "deduction", oAmounts.OE, this._createDetailRows(oPeriodData, "OE"), true),
+                this._createStatementRow("PRE_TAX_PROFIT", "법인세차감전이익(손실)", "subtotal", oPreTaxProfit, [], false, true),
+                this._createStatementRow("CORPORATE_TAX", "법인세비용", "deduction", oCorporateTax, [], false),
+                this._createStatementRow("NET_PROFIT", "당기순이익(손실)", "total", oNetProfit, [], false, true)
             ];
 
-            return aRows.filter((oRow) => !this._isZeroRow(oRow) || (oRow.children || []).length > 0);
+            return aRows.filter((oRow) => oRow.forceShow || oRow.alwaysShow || !this._isZeroRow(oRow) || (oRow.children || []).length > 0);
         },
 
-        _createStatementRow(sKey, sName, sRowType, oAmounts, aChildren = []) {
+        _createStatementRow(sKey, sName, sRowType, oAmounts, aChildren = [], bForceShow = false, bAlwaysShow = false) {
+            const aFilteredChildren = aChildren.filter((oChild) => !this._isZeroRow(oChild));
+
+            // If this row should be forced to show (e.g. summary from ZCDS_D4_FI_0002)
+            // but has no real children, add a hidden placeholder child so the Tree
+            // will render an expander '>' even when amounts are zero.
+            let aChildrenForModel = aFilteredChildren;
+
+            if (bForceShow && aFilteredChildren.length === 0) {
+                aChildrenForModel = [{
+                    PL_type: sKey + "_PLACEHOLDER",
+                    name: "",
+                    rowType: "detail",
+                    Waers: "KRW",
+                    previous2Amount: 0,
+                    previousAmount: 0,
+                    currentAmount: 0,
+                    isPlaceholder: true,
+                    children: []
+                }];
+            }
+
             return Object.assign({
                 PL_type: sKey,
                 name: sName,
                 rowType: sRowType,
                 Waers: "KRW",
-                children: aChildren.filter((oChild) => !this._isZeroRow(oChild))
+                forceShow: bForceShow,
+                hasExpander: bForceShow || aFilteredChildren.length > 0,
+                alwaysShow: bAlwaysShow,
+                expanded: true,
+                children: aChildrenForModel
             }, oAmounts);
         },
 
