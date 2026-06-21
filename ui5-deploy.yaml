@@ -1,0 +1,24 @@
+# yaml-language-server: $schema=https://sap.github.io/ui5-tooling/schema/ui5.yaml.json
+
+specVersion: "3.1"
+metadata:
+  name: code.t4.ui5.fi05
+type: application
+builder:
+  resources:
+    excludes:
+      - /test/**
+      - /localService/**
+  customTasks:
+    - name: deploy-to-abap
+      afterTask: generateCachebusterInfo
+      configuration:
+        target:
+          url: http://bgissap3.bgissap.co.kr:8000/
+        app:
+          name: ZD4FI05
+          description: '[FI] 손익계산서'
+          package: ZPD4FI
+          transport: EFXK902504
+        exclude:
+          - /test/

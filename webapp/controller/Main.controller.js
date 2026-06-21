@@ -4,8 +4,35 @@ sap.ui.define([
     "sap/ui/model/Filter",
     "sap/ui/model/FilterOperator",
     "sap/ui/core/ValueState",
-    "sap/m/MessageToast"
-], (Controller, JSONModel, Filter, FilterOperator, ValueState, MessageToast) => {
+    "sap/m/MessageToast",
+    "sap/m/Dialog",
+    "sap/m/Button",
+    "sap/m/VBox",
+    "sap/m/Title",
+    "sap/m/Text",
+    "sap/viz/ui5/controls/VizFrame",
+    "sap/viz/ui5/data/FlattenedDataset",
+    "sap/viz/ui5/data/DimensionDefinition",
+    "sap/viz/ui5/data/MeasureDefinition",
+    "sap/viz/ui5/controls/common/feeds/FeedItem"
+], (
+    Controller,
+    JSONModel,
+    Filter,
+    FilterOperator,
+    ValueState,
+    MessageToast,
+    Dialog,
+    Button,
+    VBox,
+    Title,
+    Text,
+    VizFrame,
+    FlattenedDataset,
+    DimensionDefinition,
+    MeasureDefinition,
+    FeedItem
+) => {
     "use strict";
 
     const PL_TYPES = [
@@ -20,6 +47,19 @@ sap.ui.define([
         "previous2Amount",
         "previousAmount",
         "currentAmount"
+    ];
+
+    const REQUIRED_STATEMENT_KEYS = [
+        "SA",
+        "CO",
+        "GROSS_PROFIT",
+        "SG",
+        "OPERATING_PROFIT",
+        "OI",
+        "OE",
+        "PRE_TAX_PROFIT",
+        "CORPORATE_TAX",
+        "NET_PROFIT"
     ];
 
     return Controller.extend("code.t4.ui5.fi05.controller.Main", {
@@ -39,6 +79,10 @@ sap.ui.define([
                 return;
             }
 
+            if (!this._validateFiscalYear(sGjahr)) {
+                return;
+            }
+
             const aPeriods = this._getDisplayPeriods(Number(sGjahr), Number(sWeeks));
 
             Promise.all(aPeriods.map((oPeriod) => this._readPeriodData(sBukrs, oPeriod)))
@@ -49,7 +93,7 @@ sap.ui.define([
                         oPeriodData[oPeriod.key] = aResults[iIndex];
                     });
 
-                    const aItems = this._buildStatementItems(oPeriodData);
+                    const aItems = this._applyTreeLevels(this._buildStatementItems(oPeriodData));
 
                     if (!aItems.length) {
                         this.getView().getModel("pl").setData(this._createInitialPlData());
@@ -60,10 +104,14 @@ sap.ui.define([
                     this.getView().getModel("pl").setData({
                         isSearched: true,
                         periods: this._createPeriodMap(aPeriods),
-                        items: aItems
+                        items: aItems,
+                        visibleRowCount: Math.max(5, this._countTreeRows(aItems))
                     });
 
-                    this._expandPlTree(1);
+                    setTimeout(() => {
+                        this.byId("plTree").expandToLevel(99);
+                    }, 0);
+
                     MessageToast.show("손익계산서 조회가 완료되었습니다.");
                 })
                 .catch(() => {
@@ -83,7 +131,16 @@ sap.ui.define([
         onReset() {
             this.getView().getModel("search").setData(this._createInitialSearchData());
             this.getView().getModel("pl").setData(this._createInitialPlData());
+            this._clearFiscalYearValueState();
             MessageToast.show("초기화되었습니다.");
+        },
+
+        onFiscalYearChange(oEvent) {
+            const sGjahr = String(oEvent.getParameter("value") || "").trim();
+
+            if (!sGjahr || Number(sGjahr) >= 1995) {
+                this._clearFiscalYearValueState();
+            }
         },
 
         onExportPdf() {
@@ -118,6 +175,43 @@ sap.ui.define([
             this._downloadFile("\uFEFF" + sHtml, "손익계산서.xls", "application/vnd.ms-excel;charset=utf-8");
         },
 
+        onShowChart() {
+            const oPlData = this.getView().getModel("pl").getData();
+
+            if (!oPlData.isSearched) {
+                return;
+            }
+
+            const oChart = this._createStackedColumnChart(oPlData);
+            const oHeaderBox = new VBox({
+                items: [
+                    new Title({ text: "기간별 경영성과 비교", level: "H4" }),
+                    new Text({ text: "(단위: 원)", textAlign: "End", width: "100%" })
+                ]
+            });
+            const oContentBox = new VBox({
+                items: [
+                    oHeaderBox,
+                    oChart
+                ]
+            }).addStyleClass("sapUiMediumMarginTop sapUiMediumMarginBegin sapUiMediumMarginEnd");
+            const oDialog = new Dialog({
+                title: "손익 기준일 비교",
+                contentWidth: "72rem",
+                contentHeight: "42rem",
+                verticalScrolling: true,
+                content: oContentBox,
+                beginButton: new Button({
+                    text: "닫기",
+                    press: () => oDialog.close()
+                }),
+                afterClose: () => oDialog.destroy()
+            });
+
+            this.getView().addDependent(oDialog);
+            oDialog.open();
+        },
+
         formatCurrencyAmount(vAmount, sCurrency) {
             const iAmount = Number(vAmount || 0);
             const iDigits = sCurrency === "KRW" ? 0 : 2;
@@ -131,6 +225,33 @@ sap.ui.define([
 
         formatCurrencyState(vAmount, sRowType) {
             return sRowType === "total" && Number(vAmount || 0) < 0 ? ValueState.Error : ValueState.None;
+        },
+
+        formatStatementLabelDesign(bStatementLine) {
+            return bStatementLine ? "Bold" : "Standard";
+        },
+
+        _validateFiscalYear(sGjahr) {
+            const oFiscalYearInput = this.byId("gjahrInput");
+
+            if (Number(sGjahr) >= 1995) {
+                this._clearFiscalYearValueState();
+                return true;
+            }
+
+            oFiscalYearInput.setValueState(ValueState.Error);
+            oFiscalYearInput.setValueStateText("회사 설립연도(1995년) 이전의 연도는 입력할 수 없습니다.");
+            oFiscalYearInput.focus();
+            return false;
+        },
+
+        _clearFiscalYearValueState() {
+            const oFiscalYearInput = this.byId("gjahrInput");
+
+            if (oFiscalYearInput) {
+                oFiscalYearInput.setValueState(ValueState.None);
+                oFiscalYearInput.setValueStateText("");
+            }
         },
 
         _createInitialSearchData() {
@@ -147,7 +268,8 @@ sap.ui.define([
             return {
                 isSearched: false,
                 periods: this._createEmptyPeriodMap(),
-                items: []
+                items: [],
+                visibleRowCount: 5
             };
         },
 
@@ -231,6 +353,156 @@ sap.ui.define([
                 aResult.push(Object.assign({ level: iLevel }, oRow));
                 return aResult.concat(this._flattenExportRows(oRow.children || [], iLevel + 1));
             }, []);
+        },
+
+        _countTreeRows(aRows) {
+            return (aRows || []).reduce((iCount, oRow) => {
+                return iCount + 1 + this._countTreeRows(oRow.children || []);
+            }, 0);
+        },
+
+        _applyTreeLevels(aRows, iLevel = 0) {
+            return (aRows || []).map((oRow) => Object.assign({}, oRow, {
+                level: iLevel,
+                children: this._applyTreeLevels(oRow.children || [], iLevel + 1)
+            }));
+        },
+
+        _createStackedColumnChart(oPlData) {
+            const oChartModel = new JSONModel({
+                items: this._createChartData(oPlData)
+            });
+            const oDataset = new FlattenedDataset({
+                dimensions: [
+                    new DimensionDefinition({ name: "기수", value: "{period}" }),
+                    new DimensionDefinition({ name: "구분", value: "{group}" }),
+                    new DimensionDefinition({ name: "항목", value: "{item}" })
+                ],
+                measures: [
+                    new MeasureDefinition({ name: "금액", value: "{amount}" })
+                ],
+                data: {
+                    path: "/items"
+                }
+            });
+            const oVizFrame = new VizFrame({
+                width: "100%",
+                height: "30rem",
+                vizType: "stacked_column",
+                dataset: oDataset
+            });
+
+            oVizFrame.setModel(oChartModel);
+            oVizFrame.setVizProperties({
+                plotArea: {
+                    dataLabel: {
+                        visible: true,
+                        formatString: "#,##0"
+                    }
+                },
+                valueAxis: {
+                    title: {
+                        visible: false
+                    },
+                    label: {
+                        formatString: "#,##0"
+                    }
+                },
+                categoryAxis: {
+                    title: {
+                        visible: false
+                    }
+                },
+                legend: {
+                    visible: true
+                },
+                title: {
+                    visible: false
+                }
+            });
+
+            oVizFrame.addFeed(new FeedItem({
+                uid: "valueAxis",
+                type: "Measure",
+                values: ["금액"]
+            }));
+            oVizFrame.addFeed(new FeedItem({
+                uid: "categoryAxis",
+                type: "Dimension",
+                values: ["기수", "구분"]
+            }));
+            oVizFrame.addFeed(new FeedItem({
+                uid: "color",
+                type: "Dimension",
+                values: ["항목"]
+            }));
+
+            return oVizFrame;
+        },
+
+        _createChartData(oPlData) {
+            const aPeriods = [
+                { key: "currentAmount", title: oPlData.periods.current.title },
+                { key: "previousAmount", title: oPlData.periods.previous.title },
+                { key: "previous2Amount", title: oPlData.periods.previous2.title }
+            ];
+            const aRevenueItems = [
+                { type: "SA", name: "매출액" },
+                { type: "OI", name: "영업외수익" }
+            ];
+            const aExpenseItems = [
+                { type: "CO", name: "매출원가" },
+                { type: "SG", name: "판매관리비" },
+                { type: "OE", name: "영업외비용" },
+                { type: "CORPORATE_TAX", name: "법인세비용" }
+            ];
+
+            return aPeriods.reduce((aResult, oPeriod) => {
+                return aResult
+                    .concat(this._createChartGroupData(oPlData.items, oPeriod, "수익", aRevenueItems))
+                    .concat(this._createChartGroupData(oPlData.items, oPeriod, "비용", aExpenseItems));
+            }, []);
+        },
+
+        _createChartGroupData(aRows, oPeriod, sGroup, aItems) {
+            return aItems.map((oItem) => {
+                const oValue = this._createChartValue(aRows, oItem.type, oItem.name, oPeriod.key);
+
+                return {
+                    period: oPeriod.title,
+                    group: sGroup,
+                    item: oItem.name,
+                    amount: oValue.chartValue
+                };
+            });
+        },
+
+        _createChartValue(aRows, sPlType, sName, sPeriodKey) {
+            const oRow = this._findStatementRow(aRows, sPlType);
+            const iAmount = oRow ? Number(oRow[sPeriodKey] || 0) : 0;
+
+            return {
+                name: sName,
+                amount: iAmount,
+                chartValue: Math.abs(iAmount),
+                displayValue: this.formatCurrencyAmount(iAmount, "KRW")
+            };
+        },
+
+        _findStatementRow(aRows, sPlType) {
+            for (const oRow of aRows || []) {
+                if (oRow.PL_type === sPlType) {
+                    return oRow;
+                }
+
+                const oChild = this._findStatementRow(oRow.children || [], sPlType);
+
+                if (oChild) {
+                    return oChild;
+                }
+            }
+
+            return null;
         },
 
         _buildExportTableRowsHtml(aRows, aColumns) {
@@ -354,6 +626,7 @@ sap.ui.define([
                 PL_type: sKey,
                 name: sName,
                 rowType: sRowType,
+                statementLine: true,
                 Waers: "KRW",
                 forceShow: bForceShow,
                 hasExpander: bForceShow || aFilteredChildren.length > 0,

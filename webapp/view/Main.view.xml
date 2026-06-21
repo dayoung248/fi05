@@ -2,8 +2,7 @@
     controllerName="code.t4.ui5.fi05.controller.Main"
     xmlns:mvc="sap.ui.core.mvc"
     xmlns:core="sap.ui.core"
-    xmlns="sap.m"
-    xmlns:form="sap.ui.layout.form">
+    xmlns="sap.m">
     <Page id="page" title="손익계산서">
         <content>
             <VBox class="sapUiSmallMargin">
@@ -22,6 +21,7 @@
                         value="{search>/Gjahr}"
                         maxLength="4"
                         type="Number"
+                        liveChange=".onFiscalYearChange"
                         width="10rem"/>
                     <ToolbarSeparator/>
                     <Label text="회계주차:"/>
@@ -55,6 +55,11 @@
                         icon="sap-icon://excel-attachment"
                         enabled="{pl>/isSearched}"
                         press=".onExportExcel"/>
+                    <Button
+                        text="차트 보기"
+                        icon="sap-icon://bar-chart"
+                        enabled="{pl>/isSearched}"
+                        press=".onShowChart"/>
                 </OverflowToolbar>
 
                 <VBox
@@ -67,49 +72,49 @@
                     <Text text="{pl>/periods/previous2/periodText}"/>
                 </VBox>
 
-                <HBox class="sapUiTinyMarginTop" width="100%" alignItems="Center">
-                    <Label text="" width="3rem"/>
-                    <Label text="구분" design="Bold" width="20rem"/>
-                    <HBox width="12rem" justifyContent="End">
-                        <Label text="{pl>/periods/current/title}" design="Bold" textAlign="End"/>
-                    </HBox>
-                    <HBox width="12rem" justifyContent="End">
-                        <Label text="{pl>/periods/previous/title}" design="Bold" textAlign="End"/>
-                    </HBox>
-                    <HBox width="12rem" justifyContent="End">
-                        <Label text="{pl>/periods/previous2/title}" design="Bold" textAlign="End"/>
-                    </HBox>
-                </HBox>
-
                 <Tree
                     id="plTree"
+                    class="plTree sapUiTinyMarginTop"
                     items="{path: 'pl>/items', parameters: {arrayNames: ['children']}}"
                     mode="None"
-                    includeItemInSelection="false">
-                    <CustomTreeItem
-                        hasExpander="{pl>hasExpander}"
-                        expanded="{pl>expanded}"
-                        visible="{= !${pl>isPlaceholder}}">
+                    includeItemInSelection="false"
+                    >
+                    <headerToolbar>
+                        <Toolbar class="plTreeHeaderBar">
+                            <HBox class="plTreeHeader" width="100%" alignItems="Center">
+                                <Label text="구분" design="Bold" class="plTreeName"/>
+                                <Label text="{pl>/periods/current/title}" design="Bold" textAlign="End" class="plTreeAmount"/>
+                                <Label text="{pl>/periods/previous/title}" design="Bold" textAlign="End" class="plTreeAmount"/>
+                                <Label text="{pl>/periods/previous2/title}" design="Bold" textAlign="End" class="plTreeAmount"/>
+                            </HBox>
+                        </Toolbar>
+                    </headerToolbar>
+                    <CustomTreeItem>
                         <customData>
                             <core:CustomData key="rowType" value="{pl>rowType}" writeToDom="true"/>
+                            <core:CustomData key="level" value="{pl>level}" writeToDom="true"/>
+                            <core:CustomData key="statementLine" value="{pl>statementLine}" writeToDom="true"/>
                         </customData>
-                        <HBox width="100%" alignItems="Center">
-                            <Text text="{pl>name}" width="20rem"/>
-                            <HBox width="12rem" justifyContent="End">
+                        <HBox width="100%" alignItems="Center" class="plTreeRow">
+                            <Label
+                                text="{pl>name}"
+                                design="{path: 'pl>statementLine', formatter: '.formatStatementLabelDesign'}"
+                                class="plTreeName"/>
+                            <HBox width="100%" justifyContent="End" class="plTreeAmount plTreeRowAmount">
                                 <ObjectNumber
                                     textAlign="End"
                                     number="{parts: [{path: 'pl>currentAmount'}, {path: 'pl>Waers'}], formatter: '.formatCurrencyAmount'}"
                                     unit="{pl>Waers}"
                                     state="{parts: [{path: 'pl>currentAmount'}, {path: 'pl>rowType'}], formatter: '.formatCurrencyState'}"/>
                             </HBox>
-                            <HBox width="12rem" justifyContent="End">
+                            <HBox width="100%" justifyContent="End" class="plTreeAmount plTreeRowAmount">
                                 <ObjectNumber
                                     textAlign="End"
                                     number="{parts: [{path: 'pl>previousAmount'}, {path: 'pl>Waers'}], formatter: '.formatCurrencyAmount'}"
                                     unit="{pl>Waers}"
                                     state="{parts: [{path: 'pl>previousAmount'}, {path: 'pl>rowType'}], formatter: '.formatCurrencyState'}"/>
                             </HBox>
-                            <HBox width="12rem" justifyContent="End">
+                            <HBox width="100%" justifyContent="End" class="plTreeAmount plTreeRowAmount">
                                 <ObjectNumber
                                     textAlign="End"
                                     number="{parts: [{path: 'pl>previous2Amount'}, {path: 'pl>Waers'}], formatter: '.formatCurrencyAmount'}"
