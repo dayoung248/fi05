@@ -105,27 +105,14 @@ sap.ui.define([
                         isSearched: true,
                         periods: this._createPeriodMap(aPeriods),
                         items: aItems,
-                        visibleRowCount: Math.max(5, this._countTreeRows(aItems))
+                        visibleItems: this._flattenVisibleRows(aItems)
                     });
-
-                    setTimeout(() => {
-                        this.byId("plTree").expandToLevel(99);
-                    }, 0);
 
                     MessageToast.show("손익계산서 조회가 완료되었습니다.");
                 })
                 .catch(() => {
                     MessageToast.show("손익계산서 조회 중 오류가 발생했습니다.");
                 });
-        },
-
-        _expandPlTree(iLevel) {
-            const oTree = this.byId("plTree");
-            const oBinding = oTree && oTree.getBinding("items");
-
-            if (oBinding && typeof oBinding.expandToLevel === "function") {
-                oBinding.expandToLevel(iLevel);
-            }
         },
 
         onReset() {
@@ -212,6 +199,26 @@ sap.ui.define([
             oDialog.open();
         },
 
+        onTogglePlRow(oEvent) {
+            const oContext = oEvent.getSource().getBindingContext("pl");
+
+            if (!oContext) {
+                return;
+            }
+
+            const oModel = this.getView().getModel("pl");
+            const oClickedRow = oContext.getObject();
+            const aItems = oModel.getProperty("/items") || [];
+            const oTreeRow = this._findRowByTreePath(aItems, oClickedRow.treePath);
+
+            if (!oTreeRow || !oTreeRow.hasChildren) {
+                return;
+            }
+
+            oTreeRow.expanded = !oTreeRow.expanded;
+            oModel.setProperty("/visibleItems", this._flattenVisibleRows(aItems));
+        },
+
         formatCurrencyAmount(vAmount, sCurrency) {
             const iAmount = Number(vAmount || 0);
             const iDigits = sCurrency === "KRW" ? 0 : 2;
@@ -224,7 +231,25 @@ sap.ui.define([
         },
 
         formatCurrencyState(vAmount, sRowType) {
-            return sRowType === "total" && Number(vAmount || 0) < 0 ? ValueState.Error : ValueState.None;
+            if (sRowType !== "total") {
+                return ValueState.None;
+            }
+
+            const iAmount = Number(vAmount || 0);
+
+            if (iAmount > 0) {
+                return ValueState.Success;
+            }
+
+            return iAmount < 0 ? ValueState.Error : ValueState.None;
+        },
+
+        formatExpandIcon(bHasChildren, bExpanded) {
+            if (!bHasChildren) {
+                return "";
+            }
+
+            return bExpanded ? "sap-icon://slim-arrow-down" : "sap-icon://slim-arrow-right";
         },
 
         formatStatementLabelDesign(bStatementLine) {
@@ -269,7 +294,7 @@ sap.ui.define([
                 isSearched: false,
                 periods: this._createEmptyPeriodMap(),
                 items: [],
-                visibleRowCount: 5
+                visibleItems: []
             };
         },
 
@@ -313,6 +338,7 @@ sap.ui.define([
                 ".subtotal td{border-top:2px solid #666;font-weight:700;}",
                 ".total td{border-top:2px solid #333;border-bottom:2px solid #333;font-weight:700;}",
                 ".negativeTotal{color:#c00000;}",
+                ".positiveTotal{color:#107e3e;}",
                 "@media print{@page{size:A4 landscape;margin:12mm;}body{margin:0;}}",
                 "</style>",
                 "</head>",
@@ -355,17 +381,52 @@ sap.ui.define([
             }, []);
         },
 
-        _countTreeRows(aRows) {
-            return (aRows || []).reduce((iCount, oRow) => {
-                return iCount + 1 + this._countTreeRows(oRow.children || []);
-            }, 0);
+        _applyTreeLevels(aRows, iLevel = 0, sParentPath = "") {
+            return (aRows || []).map((oRow, iIndex) => {
+                const sTreePath = sParentPath ? sParentPath + "." + iIndex : String(iIndex);
+                const aChildren = this._applyTreeLevels(oRow.children || [], iLevel + 1, sTreePath);
+                const aRealChildren = aChildren.filter((oChild) => !oChild.isPlaceholder);
+
+                return Object.assign({}, oRow, {
+                    level: iLevel,
+                    treePath: sTreePath,
+                    hasChildren: aRealChildren.length > 0,
+                    expanded: oRow.expanded !== false,
+                    children: aChildren
+                });
+            });
         },
 
-        _applyTreeLevels(aRows, iLevel = 0) {
-            return (aRows || []).map((oRow) => Object.assign({}, oRow, {
-                level: iLevel,
-                children: this._applyTreeLevels(oRow.children || [], iLevel + 1)
-            }));
+        _flattenVisibleRows(aRows) {
+            return (aRows || []).reduce((aResult, oRow) => {
+                if (oRow.isPlaceholder) {
+                    return aResult;
+                }
+
+                aResult.push(oRow);
+
+                if (oRow.expanded && oRow.hasChildren) {
+                    return aResult.concat(this._flattenVisibleRows(oRow.children || []));
+                }
+
+                return aResult;
+            }, []);
+        },
+
+        _findRowByTreePath(aRows, sTreePath) {
+            for (const oRow of aRows || []) {
+                if (oRow.treePath === sTreePath) {
+                    return oRow;
+                }
+
+                const oChild = this._findRowByTreePath(oRow.children || [], sTreePath);
+
+                if (oChild) {
+                    return oChild;
+                }
+            }
+
+            return null;
         },
 
         _createStackedColumnChart(oPlData) {
@@ -511,7 +572,11 @@ sap.ui.define([
                 const sAccount = this._escapeHtml(oRow.name || "");
                 const sCells = aColumns.map((oColumn) => {
                     const iAmount = Number(oRow[oColumn.key] || 0);
-                    const sClass = oRow.rowType === "total" && iAmount < 0 ? "amount negativeTotal" : "amount";
+                    const sClass = [
+                        "amount",
+                        oRow.rowType === "total" && iAmount < 0 ? "negativeTotal" : "",
+                        oRow.rowType === "total" && iAmount > 0 ? "positiveTotal" : ""
+                    ].filter(Boolean).join(" ");
 
                     return "<td class=\"" + sClass + "\">" + this.formatCurrencyAmount(iAmount, oRow.Waers) + "</td>";
                 }).join("");
@@ -603,25 +668,6 @@ sap.ui.define([
         _createStatementRow(sKey, sName, sRowType, oAmounts, aChildren = [], bForceShow = false, bAlwaysShow = false) {
             const aFilteredChildren = aChildren.filter((oChild) => !this._isZeroRow(oChild));
 
-            // If this row should be forced to show (e.g. summary from ZCDS_D4_FI_0002)
-            // but has no real children, add a hidden placeholder child so the Tree
-            // will render an expander '>' even when amounts are zero.
-            let aChildrenForModel = aFilteredChildren;
-
-            if (bForceShow && aFilteredChildren.length === 0) {
-                aChildrenForModel = [{
-                    PL_type: sKey + "_PLACEHOLDER",
-                    name: "",
-                    rowType: "detail",
-                    Waers: "KRW",
-                    previous2Amount: 0,
-                    previousAmount: 0,
-                    currentAmount: 0,
-                    isPlaceholder: true,
-                    children: []
-                }];
-            }
-
             return Object.assign({
                 PL_type: sKey,
                 name: sName,
@@ -629,10 +675,9 @@ sap.ui.define([
                 statementLine: true,
                 Waers: "KRW",
                 forceShow: bForceShow,
-                hasExpander: bForceShow || aFilteredChildren.length > 0,
                 alwaysShow: bAlwaysShow,
                 expanded: true,
-                children: aChildrenForModel
+                children: aFilteredChildren
             }, oAmounts);
         },
 

@@ -1,107 +1,73 @@
-.plTreeHeader,
-.plTreeRow {
-    display: grid !important;
-    grid-template-columns: minmax(18rem, 40%) repeat(3, minmax(0, 20%));
-    column-gap: 0;
-    align-items: center;
-    box-sizing: border-box;
-    width: 100% !important;
+.plUnitText {
+    font-size: 0.8125rem;
+    font-weight: 700;
+    margin-right: 2rem;
 }
 
-.plTreeHeader > .sapMFlexItem,
-.plTreeRow > .sapMFlexItem {
+.plTable {
+    width: 100%;
+}
+
+.plTable .sapMListTblHeaderCell,
+.plTable .sapMListTblCell {
+    box-sizing: border-box;
+}
+
+.plTable .sapMListTblHeaderCell:not(:first-child),
+.plTable .sapMListTblCell:not(:first-child) {
+    padding-right: 2rem;
+    text-align: right;
+}
+
+.plTable .sapMColumnHeader {
+    justify-content: flex-end;
+}
+
+.plTable .sapMListTblHeaderCell:first-child .sapMColumnHeader {
+    justify-content: flex-start;
+}
+
+.plTableNameCell {
     min-width: 0;
     width: 100%;
 }
 
-.plTreeHeaderBar .sapMBarChild {
-    width: 100%;
+.plTableToggleButton {
+    flex: 0 0 2rem;
+    width: 2rem;
+    min-width: 2rem;
+    padding: 0;
 }
 
-.plTreeHeaderBar.sapMTB {
-    padding-left: 0;
-    padding-right: 0;
+.plTableToggleButton.sapMBtnDisabled {
+    opacity: 0;
 }
 
-.plTreeName {
-    display: block;
+.plTableName {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-.plTreeAmount {
-    display: flex !important;
-    justify-content: flex-end !important;
-    justify-self: stretch;
-    min-width: 0;
-    width: 100% !important;
-    white-space: nowrap;
-    text-align: right;
-    box-sizing: border-box;
+.plTable .sapMListTblRow[data-level="1"] .plTableNameCell {
+    padding-left: 1.5rem;
 }
 
-.plTreeRowAmount {
-    padding-right: 2rem;
+.plTable .sapMListTblRow[data-level="2"] .plTableNameCell {
+    padding-left: 3rem;
 }
 
-.plTreeAmount.sapMLabel {
-    display: block !important;
-    justify-self: stretch;
-    text-align: right !important;
+.plTable .sapMListTblRow[data-level="3"] .plTableNameCell {
+    padding-left: 4.5rem;
 }
 
-.plTreeAmount .sapMObjectNumberText,
-.plTreeAmount .sapMObjectNumberUnit {
-    white-space: nowrap;
-}
-
-.plTreeAmount .sapMObjectNumber {
+.plTable .sapMObjectNumber {
+    display: block;
     width: 100%;
     text-align: right;
 }
 
-.plTreeRowAmount .sapMObjectNumber {
-    width: auto;
-}
-
-.plTree .sapMLIBContent {
-    width: 100%;
-}
-
-.plTree .sapMTreeItemBase[data-level="0"] .plTreeRow {
-    margin-left: -2rem;
-    width: calc(100% + 2rem);
-}
-
-.plTree .sapMTreeItemBase[data-level="1"] .plTreeRow {
-    margin-left: -4rem;
-    width: calc(100% + 4rem);
-}
-
-.plTree .sapMTreeItemBase[data-level="2"] .plTreeRow {
-    margin-left: -6rem;
-    width: calc(100% + 6rem);
-}
-
-.plTree .sapMTreeItemBase[data-level="3"] .plTreeRow {
-    margin-left: -8rem;
-    width: calc(100% + 8rem);
-}
-
-.plTree .sapMTreeItemBase[data-level="0"] .plTreeName {
-    padding-left: 2rem;
-}
-
-.plTree .sapMTreeItemBase[data-level="1"] .plTreeName {
-    padding-left: 4rem;
-}
-
-.plTree .sapMTreeItemBase[data-level="2"] .plTreeName {
-    padding-left: 6rem;
-}
-
-.plTree .sapMTreeItemBase[data-level="3"] .plTreeName {
-    padding-left: 8rem;
+.plTable .sapMObjectNumberText {
+    white-space: nowrap;
 }

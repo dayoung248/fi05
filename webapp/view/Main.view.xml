@@ -72,58 +72,70 @@
                     <Text text="{pl>/periods/previous2/periodText}"/>
                 </VBox>
 
-                <Tree
-                    id="plTree"
-                    class="plTree sapUiTinyMarginTop"
-                    items="{path: 'pl>/items', parameters: {arrayNames: ['children']}}"
+                <HBox
+                    width="100%"
+                    justifyContent="End"
+                    visible="{pl>/isSearched}">
+                    <Text text="(단위: 원)" class="plUnitText"/>
+                </HBox>
+
+                <Table
+                    id="plTable"
+                    class="plTable sapUiTinyMarginTop"
+                    items="{pl>/visibleItems}"
                     mode="None"
-                    includeItemInSelection="false"
-                    >
-                    <headerToolbar>
-                        <Toolbar class="plTreeHeaderBar">
-                            <HBox class="plTreeHeader" width="100%" alignItems="Center">
-                                <Label text="구분" design="Bold" class="plTreeName"/>
-                                <Label text="{pl>/periods/current/title}" design="Bold" textAlign="End" class="plTreeAmount"/>
-                                <Label text="{pl>/periods/previous/title}" design="Bold" textAlign="End" class="plTreeAmount"/>
-                                <Label text="{pl>/periods/previous2/title}" design="Bold" textAlign="End" class="plTreeAmount"/>
-                            </HBox>
-                        </Toolbar>
-                    </headerToolbar>
-                    <CustomTreeItem>
-                        <customData>
-                            <core:CustomData key="rowType" value="{pl>rowType}" writeToDom="true"/>
-                            <core:CustomData key="level" value="{pl>level}" writeToDom="true"/>
-                            <core:CustomData key="statementLine" value="{pl>statementLine}" writeToDom="true"/>
-                        </customData>
-                        <HBox width="100%" alignItems="Center" class="plTreeRow">
-                            <Label
-                                text="{pl>name}"
-                                design="{path: 'pl>statementLine', formatter: '.formatStatementLabelDesign'}"
-                                class="plTreeName"/>
-                            <HBox width="100%" justifyContent="End" class="plTreeAmount plTreeRowAmount">
+                    fixedLayout="true"
+                    visible="{pl>/isSearched}">
+                    <columns>
+                        <Column width="40%">
+                            <Text text="구분"/>
+                        </Column>
+                        <Column width="20%" hAlign="End">
+                            <Text text="{pl>/periods/current/title}"/>
+                        </Column>
+                        <Column width="20%" hAlign="End">
+                            <Text text="{pl>/periods/previous/title}"/>
+                        </Column>
+                        <Column width="20%" hAlign="End">
+                            <Text text="{pl>/periods/previous2/title}"/>
+                        </Column>
+                    </columns>
+                    <items>
+                        <ColumnListItem vAlign="Middle">
+                            <customData>
+                                <core:CustomData key="rowType" value="{pl>rowType}" writeToDom="true"/>
+                                <core:CustomData key="level" value="{pl>level}" writeToDom="true"/>
+                                <core:CustomData key="statementLine" value="{pl>statementLine}" writeToDom="true"/>
+                            </customData>
+                            <cells>
+                                <HBox alignItems="Center" class="plTableNameCell">
+                                    <Button
+                                        type="Transparent"
+                                        class="plTableToggleButton"
+                                        icon="{parts: [{path: 'pl>hasChildren'}, {path: 'pl>expanded'}], formatter: '.formatExpandIcon'}"
+                                        enabled="{pl>hasChildren}"
+                                        press=".onTogglePlRow"/>
+                                    <Label
+                                        text="{pl>name}"
+                                        design="{path: 'pl>statementLine', formatter: '.formatStatementLabelDesign'}"
+                                        class="plTableName"/>
+                                </HBox>
                                 <ObjectNumber
                                     textAlign="End"
                                     number="{parts: [{path: 'pl>currentAmount'}, {path: 'pl>Waers'}], formatter: '.formatCurrencyAmount'}"
-                                    unit="{pl>Waers}"
                                     state="{parts: [{path: 'pl>currentAmount'}, {path: 'pl>rowType'}], formatter: '.formatCurrencyState'}"/>
-                            </HBox>
-                            <HBox width="100%" justifyContent="End" class="plTreeAmount plTreeRowAmount">
                                 <ObjectNumber
                                     textAlign="End"
                                     number="{parts: [{path: 'pl>previousAmount'}, {path: 'pl>Waers'}], formatter: '.formatCurrencyAmount'}"
-                                    unit="{pl>Waers}"
                                     state="{parts: [{path: 'pl>previousAmount'}, {path: 'pl>rowType'}], formatter: '.formatCurrencyState'}"/>
-                            </HBox>
-                            <HBox width="100%" justifyContent="End" class="plTreeAmount plTreeRowAmount">
                                 <ObjectNumber
                                     textAlign="End"
                                     number="{parts: [{path: 'pl>previous2Amount'}, {path: 'pl>Waers'}], formatter: '.formatCurrencyAmount'}"
-                                    unit="{pl>Waers}"
                                     state="{parts: [{path: 'pl>previous2Amount'}, {path: 'pl>rowType'}], formatter: '.formatCurrencyState'}"/>
-                            </HBox>
-                        </HBox>
-                    </CustomTreeItem>
-                </Tree>
+                            </cells>
+                        </ColumnListItem>
+                    </items>
+                </Table>
             </VBox>
         </content>
     </Page>
