@@ -62,6 +62,8 @@ sap.ui.define([
         "NET_PROFIT"
     ];
 
+    const CORPORATE_TAX_ACCOUNT = "550100";
+
     return Controller.extend("code.t4.ui5.fi05.controller.Main", {
         onInit() {
             this.getView().setModel(new JSONModel(this._createInitialSearchData()), "search");
@@ -93,7 +95,9 @@ sap.ui.define([
                         oPeriodData[oPeriod.key] = aResults[iIndex];
                     });
 
-                    const aItems = this._applyTreeLevels(this._buildStatementItems(oPeriodData));
+                    const aItems = this._hasPeriodData(oPeriodData)
+                        ? this._applyTreeLevels(this._buildStatementItems(oPeriodData))
+                        : [];
 
                     if (!aItems.length) {
                         this.getView().getModel("pl").setData(this._createInitialPlData());
@@ -105,7 +109,9 @@ sap.ui.define([
                         isSearched: true,
                         periods: this._createPeriodMap(aPeriods),
                         items: aItems,
-                        visibleItems: this._flattenVisibleRows(aItems)
+                        visibleItems: this._flattenVisibleRows(aItems, true),
+                        hideZeroRows: true,
+                        displayUnit: "1"
                     });
 
                     MessageToast.show("손익계산서 조회가 완료되었습니다.");
@@ -216,11 +222,15 @@ sap.ui.define([
             }
 
             oTreeRow.expanded = !oTreeRow.expanded;
-            oModel.setProperty("/visibleItems", this._flattenVisibleRows(aItems));
+            oModel.setProperty("/visibleItems", this._flattenVisibleRows(aItems, oModel.getProperty("/hideZeroRows")));
         },
 
-        formatCurrencyAmount(vAmount, sCurrency) {
-            const iAmount = Number(vAmount || 0);
+        onDisplayOptionsChange() {
+            this._refreshVisibleItems();
+        },
+
+        formatCurrencyAmount(vAmount, sCurrency, sDisplayUnit) {
+            const iAmount = Number(vAmount || 0) / this._getDisplayUnitValue(sDisplayUnit);
             const iDigits = sCurrency === "KRW" ? 0 : 2;
             const sAmount = Math.abs(iAmount).toLocaleString("ko-KR", {
                 minimumFractionDigits: iDigits,
@@ -228,6 +238,10 @@ sap.ui.define([
             });
 
             return iAmount < 0 ? "(" + sAmount + ")" : sAmount;
+        },
+
+        formatUnitText(sDisplayUnit) {
+            return "(단위: " + this._getDisplayUnitText(sDisplayUnit) + ")";
         },
 
         formatCurrencyState(vAmount, sRowType) {
@@ -254,6 +268,10 @@ sap.ui.define([
 
         formatStatementLabelDesign(bStatementLine) {
             return bStatementLine ? "Bold" : "Standard";
+        },
+
+        formatStatementEmphasized(bStatementLine) {
+            return bStatementLine === true;
         },
 
         _validateFiscalYear(sGjahr) {
@@ -283,7 +301,7 @@ sap.ui.define([
             const oCurrentPeriod = this._getRelativeFiscalWeek(new Date(), -1);
 
             return {
-                Bukrs: "",
+                Bukrs: "1000",
                 Gjahr: String(oCurrentPeriod.year),
                 Weeks: this._padWeek(oCurrentPeriod.week)
             };
@@ -294,7 +312,9 @@ sap.ui.define([
                 isSearched: false,
                 periods: this._createEmptyPeriodMap(),
                 items: [],
-                visibleItems: []
+                visibleItems: [],
+                hideZeroRows: true,
+                displayUnit: "1"
             };
         },
 
@@ -310,10 +330,11 @@ sap.ui.define([
             const oPlData = this.getView().getModel("pl").getData();
             const aColumns = this._getExportPeriodColumns(oPlData.periods);
             const aPeriodLines = this._getExportPeriodLines(oPlData.periods);
-            const aRows = this._flattenExportRows(oPlData.items || []);
+            const aRows = this._flattenExportRows(this._filterRowsForZeroOption(oPlData.items || [], oPlData.hideZeroRows));
             const bExcel = sMode === "excel";
             const sTitle = "손익계산서";
             const sTableBorder = bExcel ? "0.5pt solid #b7b7b7" : "1px solid #111";
+            const sUnitText = this.formatUnitText(oPlData.displayUnit);
 
             return [
                 "<!DOCTYPE html>",
@@ -343,7 +364,7 @@ sap.ui.define([
                 "</style>",
                 "</head>",
                 "<body>",
-                "<div class=\"exportTop\"><div class=\"company\">(주)누어바라</div><div class=\"unit\">(단위: 원)</div></div>",
+                "<div class=\"exportTop\"><div class=\"company\">(주)누어바라</div><div class=\"unit\">" + this._escapeHtml(sUnitText) + "</div></div>",
                 "<div class=\"title\">" + sTitle + "</div>",
                 "<div class=\"periods\">" + aPeriodLines.map((sLine) => this._escapeHtml(sLine)).join("<br>") + "</div>",
                 "<table>",
@@ -397,20 +418,52 @@ sap.ui.define([
             });
         },
 
-        _flattenVisibleRows(aRows) {
+        _refreshVisibleItems() {
+            const oModel = this.getView().getModel("pl");
+            const aItems = oModel.getProperty("/items") || [];
+
+            oModel.setProperty("/visibleItems", this._flattenVisibleRows(aItems, oModel.getProperty("/hideZeroRows")));
+        },
+
+        _flattenVisibleRows(aRows, bHideZeroRows) {
             return (aRows || []).reduce((aResult, oRow) => {
                 if (oRow.isPlaceholder) {
+                    return aResult;
+                }
+
+                if (!this._shouldShowRow(oRow, bHideZeroRows)) {
                     return aResult;
                 }
 
                 aResult.push(oRow);
 
                 if (oRow.expanded && oRow.hasChildren) {
-                    return aResult.concat(this._flattenVisibleRows(oRow.children || []));
+                    return aResult.concat(this._flattenVisibleRows(oRow.children || [], bHideZeroRows));
                 }
 
                 return aResult;
             }, []);
+        },
+
+        _filterRowsForZeroOption(aRows, bHideZeroRows) {
+            return (aRows || []).reduce((aResult, oRow) => {
+                const aChildren = this._filterRowsForZeroOption(oRow.children || [], bHideZeroRows);
+                const oFilteredRow = Object.assign({}, oRow, { children: aChildren });
+
+                if (this._shouldShowRow(oFilteredRow, bHideZeroRows)) {
+                    aResult.push(oFilteredRow);
+                }
+
+                return aResult;
+            }, []);
+        },
+
+        _shouldShowRow(oRow, bHideZeroRows) {
+            return !bHideZeroRows || oRow.alwaysShow || !this._isZeroRow(oRow) || this._hasVisibleChild(oRow.children, bHideZeroRows);
+        },
+
+        _hasVisibleChild(aRows, bHideZeroRows) {
+            return (aRows || []).some((oRow) => this._shouldShowRow(oRow, bHideZeroRows));
         },
 
         _findRowByTreePath(aRows, sTreePath) {
@@ -578,7 +631,7 @@ sap.ui.define([
                         oRow.rowType === "total" && iAmount > 0 ? "positiveTotal" : ""
                     ].filter(Boolean).join(" ");
 
-                    return "<td class=\"" + sClass + "\">" + this.formatCurrencyAmount(iAmount, oRow.Waers) + "</td>";
+                    return "<td class=\"" + sClass + "\">" + this.formatCurrencyAmount(iAmount, oRow.Waers, this.getView().getModel("pl").getProperty("/displayUnit")) + "</td>";
                 }).join("");
 
                 return "<tr class=\"" + sRowClass + "\"><td class=\"account\">" + sAccount + "</td>" + sCells + "</tr>";
@@ -617,6 +670,14 @@ sap.ui.define([
             }));
         },
 
+        _hasPeriodData(oPeriodData) {
+            return this._getPeriodKeys().some((sPeriodKey) => {
+                const oPeriod = oPeriodData[sPeriodKey] || {};
+
+                return ((oPeriod.summary || []).length + (oPeriod.detail || []).length) > 0;
+            });
+        },
+
         _readEntitySet(sEntitySet, sBukrs, oPeriod) {
             const oModel = this.getOwnerComponent().getModel();
 
@@ -640,7 +701,7 @@ sap.ui.define([
                 return oResult;
             }, {});
 
-            const oCorporateTax = this._createZeroAmountSet();
+            const oCorporateTax = this._createAmountSetByAccount(oPeriodData, CORPORATE_TAX_ACCOUNT);
             const oGrossProfit = this._addAmountSets(oAmounts.SA, oAmounts.CO);
             const oOperatingProfit = this._addAmountSets(oGrossProfit, oAmounts.SG);
             const oPreTaxProfit = this._addAmountSets(
@@ -658,16 +719,14 @@ sap.ui.define([
                 this._createStatementRow("OI", "영업외수익", "addition", oAmounts.OI, this._createDetailRows(oPeriodData, "OI"), true),
                 this._createStatementRow("OE", "영업외비용", "deduction", oAmounts.OE, this._createDetailRows(oPeriodData, "OE"), true),
                 this._createStatementRow("PRE_TAX_PROFIT", "법인세차감전이익(손실)", "subtotal", oPreTaxProfit, [], false, true),
-                this._createStatementRow("CORPORATE_TAX", "법인세비용", "deduction", oCorporateTax, [], false),
+                this._createStatementRow("CORPORATE_TAX", "법인세비용", "deduction", oCorporateTax, this._createDetailRowsByAccount(oPeriodData, CORPORATE_TAX_ACCOUNT, "법인세비용"), false),
                 this._createStatementRow("NET_PROFIT", "당기순이익(손실)", "total", oNetProfit, [], false, true)
             ];
 
-            return aRows.filter((oRow) => oRow.forceShow || oRow.alwaysShow || !this._isZeroRow(oRow) || (oRow.children || []).length > 0);
+            return aRows;
         },
 
         _createStatementRow(sKey, sName, sRowType, oAmounts, aChildren = [], bForceShow = false, bAlwaysShow = false) {
-            const aFilteredChildren = aChildren.filter((oChild) => !this._isZeroRow(oChild));
-
             return Object.assign({
                 PL_type: sKey,
                 name: sName,
@@ -677,7 +736,7 @@ sap.ui.define([
                 forceShow: bForceShow,
                 alwaysShow: bAlwaysShow,
                 expanded: true,
-                children: aFilteredChildren
+                children: aChildren
             }, oAmounts);
         },
 
@@ -698,6 +757,7 @@ sap.ui.define([
                                 Saknr: oRow.Saknr,
                                 name: this._getDetailName(oRow),
                                 rowType: "detail",
+                                statementLine: false,
                                 Waers: oRow.Waers || "KRW",
                                 previous2Amount: 0,
                                 previousAmount: 0,
@@ -712,8 +772,36 @@ sap.ui.define([
 
             return Object.keys(oRowsByAccount)
                 .sort()
-                .map((sAccountKey) => oRowsByAccount[sAccountKey])
-                .filter((oRow) => !this._isZeroRow(oRow));
+                .map((sAccountKey) => oRowsByAccount[sAccountKey]);
+        },
+
+        _createDetailRowsByAccount(oPeriodData, sAccount, sDefaultName) {
+            const oDetailRow = {
+                PL_type: "CORPORATE_TAX",
+                Saknr: sAccount,
+                name: sDefaultName,
+                rowType: "detail",
+                statementLine: false,
+                Waers: "KRW",
+                previous2Amount: 0,
+                previousAmount: 0,
+                currentAmount: 0,
+                children: []
+            };
+
+            this._getPeriodKeys().forEach((sPeriodKey) => {
+                const aRows = (oPeriodData[sPeriodKey] && oPeriodData[sPeriodKey].detail) || [];
+
+                aRows
+                    .filter((oRow) => String(oRow.Saknr || "").trim() === sAccount)
+                    .forEach((oRow) => {
+                        oDetailRow.name = this._getDetailName(oRow) || sDefaultName;
+                        oDetailRow.Waers = oRow.Waers || oDetailRow.Waers;
+                        oDetailRow[sPeriodKey + "Amount"] += this._getDetailAmount(oRow);
+                    });
+            });
+
+            return this._isZeroRow(oDetailRow) ? [] : [oDetailRow];
         },
 
         _getDetailName(oRow) {
@@ -729,6 +817,14 @@ sap.ui.define([
                 previous2Amount: this._getAmount(oPeriodData.previous2 && oPeriodData.previous2.summary, sPlType),
                 previousAmount: this._getAmount(oPeriodData.previous && oPeriodData.previous.summary, sPlType),
                 currentAmount: this._getAmount(oPeriodData.current && oPeriodData.current.summary, sPlType)
+            };
+        },
+
+        _createAmountSetByAccount(oPeriodData, sAccount) {
+            return {
+                previous2Amount: this._getAmountByAccount(oPeriodData.previous2 && oPeriodData.previous2.detail, sAccount),
+                previousAmount: this._getAmountByAccount(oPeriodData.previous && oPeriodData.previous.detail, sAccount),
+                currentAmount: this._getAmountByAccount(oPeriodData.current && oPeriodData.current.detail, sAccount)
             };
         },
 
@@ -751,9 +847,31 @@ sap.ui.define([
             return AMOUNT_FIELDS.every((sField) => Number(oRow[sField] || 0) === 0);
         },
 
+        _getDisplayUnitValue(sDisplayUnit) {
+            const iDisplayUnit = Number(sDisplayUnit || 1);
+
+            return Number.isFinite(iDisplayUnit) && iDisplayUnit > 0 ? iDisplayUnit : 1;
+        },
+
+        _getDisplayUnitText(sDisplayUnit) {
+            const oUnitTexts = {
+                "1": "원",
+                "1000": "천원",
+                "1000000": "백만원"
+            };
+
+            return oUnitTexts[String(sDisplayUnit || "1")] || oUnitTexts["1"];
+        },
+
         _getAmount(aRows, sPlType) {
             const oRow = (aRows || []).find((oItem) => oItem.PL_type === sPlType);
             return oRow ? Number(oRow.amount || 0) : 0;
+        },
+
+        _getAmountByAccount(aRows, sAccount) {
+            return (aRows || [])
+                .filter((oRow) => String(oRow.Saknr || "").trim() === sAccount)
+                .reduce((iTotal, oRow) => iTotal + this._getDetailAmount(oRow), 0);
         },
 
         _createPeriodMap(aPeriods) {

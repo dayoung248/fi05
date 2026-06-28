@@ -1,9 +1,9 @@
-<mvc:View
+﻿<mvc:View
     controllerName="code.t4.ui5.fi05.controller.Main"
     xmlns:mvc="sap.ui.core.mvc"
     xmlns:core="sap.ui.core"
     xmlns="sap.m">
-    <Page id="page" title="손익계산서">
+    <Page id="page" title="[FI] 손익계산서">
         <content>
             <VBox class="sapUiSmallMargin">
                 <OverflowToolbar>
@@ -39,11 +39,48 @@
                     <Button
                         text="초기화"
                         type="Default"
+                        icon="sap-icon://refresh"
                         press=".onReset"/>
                     <ToolbarSpacer/>
                 </OverflowToolbar>
 
-                <OverflowToolbar class="sapUiSmallMarginTop">
+                <VBox
+                    alignItems="Center"
+                    class="sapUiSmallMarginTop sapUiSmallMarginBottom"
+                    visible="{pl>/isSearched}">
+                    <Title text="손익계산서" level="H2"/>
+                    <Text text="{pl>/periods/current/periodText}"/>
+                    <Text text="{pl>/periods/previous/periodText}"/>
+                    <Text text="{pl>/periods/previous2/periodText}"/>
+                </VBox>
+
+                <HBox
+                    width="100%"
+                    justifyContent="End"
+                    class="plUnitBar"
+                    visible="{pl>/isSearched}">
+                    <Text
+                        text="{path: 'pl>/displayUnit', formatter: '.formatUnitText'}"
+                        class="plUnitText"/>
+                </HBox>
+
+                <OverflowToolbar
+                    class="sapUiTinyMarginBottom"
+                    visible="{pl>/isSearched}">
+                    <CheckBox
+                        text="0원 계정 숨기기"
+                        selected="{pl>/hideZeroRows}"
+                        select=".onDisplayOptionsChange"/>
+                    <ToolbarSeparator/>
+                    <Label text="표시 단위"/>
+                    <Select
+                        selectedKey="{pl>/displayUnit}"
+                        change=".onDisplayOptionsChange"
+                        width="8rem">
+                        <core:Item key="1" text="원 단위"/>
+                        <core:Item key="1000" text="천원 단위"/>
+                        <core:Item key="1000000" text="백만원 단위"/>
+                    </Select>
                     <ToolbarSpacer/>
                     <Button
                         text="PDF 출력"
@@ -62,23 +99,6 @@
                         press=".onShowChart"/>
                 </OverflowToolbar>
 
-                <VBox
-                    alignItems="Center"
-                    class="sapUiSmallMarginTop sapUiSmallMarginBottom"
-                    visible="{pl>/isSearched}">
-                    <Title text="손익계산서" level="H2"/>
-                    <Text text="{pl>/periods/current/periodText}"/>
-                    <Text text="{pl>/periods/previous/periodText}"/>
-                    <Text text="{pl>/periods/previous2/periodText}"/>
-                </VBox>
-
-                <HBox
-                    width="100%"
-                    justifyContent="End"
-                    visible="{pl>/isSearched}">
-                    <Text text="(단위: 원)" class="plUnitText"/>
-                </HBox>
-
                 <Table
                     id="plTable"
                     class="plTable sapUiTinyMarginTop"
@@ -88,7 +108,7 @@
                     visible="{pl>/isSearched}">
                     <columns>
                         <Column width="40%">
-                            <Text text="구분"/>
+                            <Text text="계정과목"/>
                         </Column>
                         <Column width="20%" hAlign="End">
                             <Text text="{pl>/periods/current/title}"/>
@@ -122,15 +142,18 @@
                                 </HBox>
                                 <ObjectNumber
                                     textAlign="End"
-                                    number="{parts: [{path: 'pl>currentAmount'}, {path: 'pl>Waers'}], formatter: '.formatCurrencyAmount'}"
+                                    emphasized="{path: 'pl>statementLine', formatter: '.formatStatementEmphasized'}"
+                                    number="{parts: [{path: 'pl>currentAmount'}, {path: 'pl>Waers'}, {path: 'pl>/displayUnit'}], formatter: '.formatCurrencyAmount'}"
                                     state="{parts: [{path: 'pl>currentAmount'}, {path: 'pl>rowType'}], formatter: '.formatCurrencyState'}"/>
                                 <ObjectNumber
                                     textAlign="End"
-                                    number="{parts: [{path: 'pl>previousAmount'}, {path: 'pl>Waers'}], formatter: '.formatCurrencyAmount'}"
+                                    emphasized="{path: 'pl>statementLine', formatter: '.formatStatementEmphasized'}"
+                                    number="{parts: [{path: 'pl>previousAmount'}, {path: 'pl>Waers'}, {path: 'pl>/displayUnit'}], formatter: '.formatCurrencyAmount'}"
                                     state="{parts: [{path: 'pl>previousAmount'}, {path: 'pl>rowType'}], formatter: '.formatCurrencyState'}"/>
                                 <ObjectNumber
                                     textAlign="End"
-                                    number="{parts: [{path: 'pl>previous2Amount'}, {path: 'pl>Waers'}], formatter: '.formatCurrencyAmount'}"
+                                    emphasized="{path: 'pl>statementLine', formatter: '.formatStatementEmphasized'}"
+                                    number="{parts: [{path: 'pl>previous2Amount'}, {path: 'pl>Waers'}, {path: 'pl>/displayUnit'}], formatter: '.formatCurrencyAmount'}"
                                     state="{parts: [{path: 'pl>previous2Amount'}, {path: 'pl>rowType'}], formatter: '.formatCurrencyState'}"/>
                             </cells>
                         </ColumnListItem>
